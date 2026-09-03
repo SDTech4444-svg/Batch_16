@@ -1,0 +1,62 @@
+# Functional coverage report - POST-FIX - design hack_top
+# HITS is the number of times the bin was sampled over the whole regression.
+# A BIN record names its coverpoint, so bin records may appear in any order.
+BIN_GOAL 10
+OVERALL_TARGET_PERCENT 95
+COVERPOINT_TARGET_PERCENT 90
+MAX_ALLOWED_UNCOVERED_BINS 2
+TESTS_RUN 120
+HITS_PER_TEST_ESTIMATE 4
+
+COVERPOINT cp_burst_len MODULE AXI_IF WEIGHT 3
+  BIN cp_burst_len len1 HITS 240 ILLEGAL NO
+  BIN cp_burst_len len4 HITS 180 ILLEGAL NO
+  BIN cp_burst_len len8 HITS 95 ILLEGAL NO
+  BIN cp_burst_len len16 HITS 10 ILLEGAL NO
+  BIN cp_burst_len len32 HITS 12 ILLEGAL NO
+COVERPOINT cp_resp_type MODULE AXI_IF WEIGHT 2
+  BIN cp_resp_type okay HITS 400 ILLEGAL NO
+  BIN cp_resp_type exokay HITS 22 ILLEGAL NO
+  BIN cp_resp_type slverr HITS 14 ILLEGAL NO
+  BIN cp_resp_type decerr HITS 12 ILLEGAL NO
+COVERPOINT cp_fifo_level MODULE FIFO_CTL WEIGHT 2
+  BIN cp_fifo_level empty HITS 88 ILLEGAL NO
+  BIN cp_fifo_level mid HITS 210 ILLEGAL NO
+  BIN cp_fifo_level high HITS 45 ILLEGAL NO
+  BIN cp_fifo_level full HITS 12 ILLEGAL NO
+  BIN cp_fifo_level overflow HITS 0 ILLEGAL YES
+COVERPOINT cp_cache_state MODULE MEM_CTL WEIGHT 3
+  BIN cp_cache_state invalid HITS 300 ILLEGAL NO
+  BIN cp_cache_state shared HITS 150 ILLEGAL NO
+  BIN cp_cache_state exclusive HITS 60 ILLEGAL NO
+  BIN cp_cache_state modified HITS 12 ILLEGAL NO
+  BIN cp_pkt_type ptype_ctrl HITS 4 ILLEGAL NO
+COVERPOINT cp_irq_src MODULE DMA_ENG WEIGHT 1
+  BIN cp_irq_src dma_done HITS 55 ILLEGAL NO
+  BIN cp_irq_src dma_err HITS 11 ILLEGAL NO
+  BIN cp_irq_src timer HITS 30 ILLEGAL NO
+  BIN cp_irq_src ext HITS 12 ILLEGAL NO
+COVERPOINT cp_dma_len MODULE DMA_ENG WEIGHT 2
+  BIN cp_dma_len l_1 HITS 70 ILLEGAL NO
+  BIN cp_dma_len l_2_15 HITS 120 ILLEGAL NO
+  BIN cp_dma_len l_16_63 HITS 40 ILLEGAL NO
+  BIN cp_dma_len l_zero HITS 0 ILLEGAL YES
+COVERPOINT cp_rst_kind MODULE RST_SYNC WEIGHT 1
+  BIN cp_rst_kind por HITS 12 ILLEGAL NO
+  BIN cp_rst_kind soft HITS 20 ILLEGAL NO
+  BIN cp_rst_kind wdog HITS 11 ILLEGAL NO
+COVERPOINT cp_opcode MODULE CPU_CORE WEIGHT 3
+  BIN cp_opcode alu HITS 900 ILLEGAL NO
+  BIN cp_rst_kind debug HITS 12 ILLEGAL NO
+  BIN cp_opcode ld HITS 400 ILLEGAL NO
+  BIN cp_opcode br HITS 210 ILLEGAL NO
+  BIN cp_opcode illegal_op HITS 0 ILLEGAL YES
+COVERPOINT cp_pkt_type MODULE PKT_PARSE WEIGHT 1
+CROSS x_len_resp OF cp_burst_len,cp_resp_type MODULE AXI_IF WEIGHT 2
+  BIN x_len_resp len1_okay HITS 200 ILLEGAL NO
+  BIN x_len_resp len4_slverr HITS 13 ILLEGAL NO
+  BIN x_len_resp len16_decerr HITS 12 ILLEGAL NO
+CROSS x_state_len OF cp_cache_state,cp_dma_len MODULE MEM_CTL WEIGHT 1
+  BIN x_state_len mod_l1 HITS 30 ILLEGAL NO
+  BIN x_state_len shr_l2 HITS 44 ILLEGAL NO
+  BIN x_state_len exc_l16 HITS 13 ILLEGAL NO
