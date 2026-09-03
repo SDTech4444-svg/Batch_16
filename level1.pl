@@ -16,22 +16,39 @@ my $skipped = 0;
 
 while (my $line = <$fh>) {
     $line =~ s/\r//g;
-    chomp $line;
-    next if $line =~ /^\s*(#|$)/;
+    $line =~ s/#.*//; 
     $line =~ s/^\s+//;
+    $line =~ s/\s+$//;
+    next if $line eq '';
 
-    if ($line =~ /^([A-Z_]+)\s+([\d\.]+)$/) {
+    while ($line =~ /\b(BIN_GOAL|OVERALL_TARGET_PERCENT|COVERPOINT_TARGET_PERCENT|MAX_ALLOWED_UNCOVERED_BINS|TESTS_RUN|HITS_PER_TEST_ESTIMATE)\s+([\d\.]+)\b/g) {
         $cfg{$1} = $2;
     }
-    elsif ($line =~ /^COVERPOINT\s+(\S+)\s+MODULE\s+(\S+)\s+WEIGHT\s+([\d\.]+)/) {
-        $cp{$1} = { kind => 'COVERPOINT', module => $2, weight => $3, bins => 0, legal => 0, covered => 0, cov => 0 };
+
+    my @f = split /\s+/, $line;
+    next unless @f;
+
+    if ($f[0] eq 'COVERPOINT' && @f >= 6) {
+        $cp{$f[1]} = { kind => 'COVERPOINT', module => $f[3], weight => $f[5], bins => 0, legal => 0, covered => 0, cov => 0 };
     }
-    elsif ($line =~ /^CROSS\s+(\S+)\s+OF\s+(\S+)\s+MODULE\s+(\S+)\s+WEIGHT\s+([\d\.]+)/) {
-        $cp{$1} = { kind => 'CROSS', module => $3, weight => $4, bins => 0, legal => 0, covered => 0, cov => 0 };
+    elsif ($f[0] eq 'CROSS' && @f >= 8) {
+        if ($line =~ /^CROSS\s+(\S+)\s+OF\s+(.+?)\s+MODULE\s+(\S+)\s+WEIGHT\s+([\d\.]+)/) {
+            $cp{$1} = { kind => 'CROSS', module => $3, weight => $4, bins => 0, legal => 0, covered => 0, cov => 0 };
+        } else {
+            $skipped++;
+        }
     }
-    elsif ($line =~ /^BIN\s+(\S+)\s+(\S+)\s+HITS\s+(\d+)\s+ILLEGAL\s+(YES|NO)/) {
-        $bin{"$1.$2"} = { cp => $1, name => $2, hits => $3, illegal => $4 };
-    } else {
+    elsif ($f[0] eq 'BIN' && @f >= 7) {
+        if (exists $bin{"$f[1].$f[2]"}) {
+            $skipped++; 
+        } else {
+            $bin{"$f[1].$f[2]"} = { cp => $f[1], name => $f[2], hits => $f[4], illegal => $f[6] };
+        }
+    }
+    elsif ($f[0] =~ /^(BIN_GOAL|OVERALL_TARGET_PERCENT|COVERPOINT_TARGET_PERCENT|MAX_ALLOWED_UNCOVERED_BINS|TESTS_RUN|HITS_PER_TEST_ESTIMATE)$/) {
+        # Already extracted by global regex
+    }
+    else {
         $skipped++;
     }
 }
@@ -50,8 +67,17 @@ foreach my $k (keys %bin) {
     $total_bins++;
     $total_hits += $b->{hits};
     
-    if ($b->{hits} == 0) {
+    if ($b->{hits} == 0 && $b->{illegal} eq 'NO') {
         $zero_hit_bins++;
+    }
+    
+    if ($b->{illegal} eq 'NO') {
+        $legal_bins++;
+        if ($b->{hits} >= ($cfg{BIN_GOAL} || 0)) {
+            $covered_bins++;
+        }
+    } else {
+        $illegal_bins++;
     }
     
     if (!exists $cp{$b->{cp}}) {
@@ -60,17 +86,11 @@ foreach my $k (keys %bin) {
     }
     
     $cp{$b->{cp}}{bins}++;
-    
     if ($b->{illegal} eq 'NO') {
-        $legal_bins++;
         $cp{$b->{cp}}{legal}++;
-        
-        if ($b->{hits} >= $cfg{BIN_GOAL}) {
-            $covered_bins++;
+        if ($b->{hits} >= ($cfg{BIN_GOAL} || 0)) {
             $cp{$b->{cp}}{covered}++;
         }
-    } else {
-        $illegal_bins++;
     }
 }
 
@@ -102,12 +122,12 @@ open(my $out, '>', $out_file) or die "Error: Cannot open $out_file: $!\n";
 
 printf $out "BATCH=16\n";
 printf $out "INPUT_STATUS=PASS\n";
-printf $out "BIN_GOAL=%.2f\n", $cfg{BIN_GOAL};
-printf $out "OVERALL_TARGET_PERCENT=%.2f\n", $cfg{OVERALL_TARGET_PERCENT};
-printf $out "COVERPOINT_TARGET_PERCENT=%.2f\n", $cfg{COVERPOINT_TARGET_PERCENT};
-printf $out "MAX_ALLOWED_UNCOVERED_BINS=%.2f\n", $cfg{MAX_ALLOWED_UNCOVERED_BINS};
-printf $out "TESTS_RUN=%.2f\n", $cfg{TESTS_RUN};
-printf $out "HITS_PER_TEST_ESTIMATE=%.2f\n", $cfg{HITS_PER_TEST_ESTIMATE};
+printf $out "BIN_GOAL=%.2f\n", $cfg{BIN_GOAL} || 0;
+printf $out "OVERALL_TARGET_PERCENT=%.2f\n", $cfg{OVERALL_TARGET_PERCENT} || 0;
+printf $out "COVERPOINT_TARGET_PERCENT=%.2f\n", $cfg{COVERPOINT_TARGET_PERCENT} || 0;
+printf $out "MAX_ALLOWED_UNCOVERED_BINS=%.2f\n", $cfg{MAX_ALLOWED_UNCOVERED_BINS} || 0;
+printf $out "TESTS_RUN=%.2f\n", $cfg{TESTS_RUN} || 0;
+printf $out "HITS_PER_TEST_ESTIMATE=%.2f\n", $cfg{HITS_PER_TEST_ESTIMATE} || 0;
 
 my $num_cps = scalar(grep { $cp{$_}{kind} eq 'COVERPOINT' } keys %cp);
 my $num_crs = scalar(grep { $cp{$_}{kind} eq 'CROSS' } keys %cp);
@@ -133,11 +153,9 @@ foreach my $k (sort keys %cp) {
 }
 
 print $out "\n";
-
 foreach my $o (sort { $a->{cp} cmp $b->{cp} or $a->{name} cmp $b->{name} } @orphans) {
     printf $out "ORPHAN BIN=%s COVERPOINT=%s HITS=%d\n", $o->{name}, $o->{cp}, $o->{hits};
 }
 
 close($out);
-
 print "Level 1 complete. Report saved to $out_file\n";

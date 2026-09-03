@@ -1,0 +1,13 @@
+DIRECTED_TEST cp_burst_len len32
+DIRECTED_TEST cp_resp_type decerr
+DIRECTED_TEST x_len_resp len16_decerr
+DIRECTED_TEST cp_irq_src ext
+DIRECTED_TEST cp_rst_kind debug
+CONSTRAINT_TUNE cp_burst_len len16
+CONSTRAINT_TUNE cp_cache_state modified
+CONSTRAINT_TUNE x_state_len exc_l16
+CONSTRAINT_TUNE cp_rst_kind wdog
+CONSTRAINT_TUNE x_len_resp len4_slverr
+REMOVE_ILLEGAL_STIMULUS cp_dma_len l_zero
+REMOVE_ILLEGAL_STIMULUS cp_fifo_level overflow
+FIX_COVERAGE_MODEL cp_pkt_type ptype_ctrl
